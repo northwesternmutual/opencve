@@ -11,6 +11,47 @@ from sqlalchemy import desc, func
 from sqlalchemy.orm import joinedload
 from wtforms import PasswordField, validators
 
+import difflib
+class MyHTML(difflib.HtmlDiff):
+
+    def __init__(self, *args, **kwargs):
+        self._table_template = """
+        <table class="table table-condensed">
+            <thead>
+                <tr>
+                    <th>Foo</th>
+                    <th>Foo</th>
+                    <th>Foo</th>
+                    <th>Foo</th>
+                    <th>Foo</th>
+                    <th>Foo</th>
+                </tr>
+            </thead>
+            <tbody>%(data_rows)s</tbody>
+        </table>"""
+        super().__init__(*args, **kwargs)
+
+        # append new styles inside new class
+        self._styles = self._styles
+
+    # function from source code - I removed only `nowrap="nowrap"`
+    def _format_line(self,side,flag,linenum,text):
+        try:
+            linenum = '%d' % linenum
+            id = ' id="%s%s"' % (self._prefix[side],linenum)
+        except TypeError:
+            # handle blank lines where linenum is '>' or ''
+            id = ''
+
+        # replace those things that would get confused with HTML symbols
+        text = text.replace("&","&amp;").replace(">","&gt;").replace("<","&lt;")
+
+        # make space non-breakable so they don't get compressed or line wrapped
+        text = text.replace(' ','&nbsp;').rstrip()
+
+        # vvv ---- removed `nowrap="nowrap"` --- vvv
+        return '<td class="diff_header"%s>%s</td><td class="foo">%s</td>' \
+               % (id,linenum,text)
 
 class AuthModelView(ModelView):
     def is_accessible(self):
@@ -208,12 +249,13 @@ class HomeView(AdminIndexView):
         else:
             previous_json = {}
 
-        differ = HtmlDiff(wrapcolumn=100)
+        differ = MyHTML()
         diff = differ.make_table(
             json.dumps(previous_json, sort_keys=True, indent=2).split("\n"),
             json.dumps(change.json, sort_keys=True, indent=2).split("\n"),
             "Old",
             "New",
+            True
         )
 
         return self.render(
